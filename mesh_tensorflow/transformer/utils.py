@@ -1367,6 +1367,7 @@ def get_estimator(model_type, vocabulary, mesh_shape,
                   autostack, learning_rate_schedule, keep_checkpoint_max,
                   save_checkpoints_steps, optimizer, predict_fn,
                   variable_filter, ensemble_inputs, use_tpu, tpu_job_name,
+                  log_step_count_steps, save_summary_steps,
                   iterations_per_loop, cluster, init_checkpoint=None,
                   mesh_devices=None):
   """Create TPU estimator for the transfomer Mesh-TF model.
@@ -1401,6 +1402,11 @@ def get_estimator(model_type, vocabulary, mesh_shape,
     ensemble_inputs: an integer, see `train_model` docstring for details.
     use_tpu: string, the Cloud TPU to use for training
     tpu_job_name: string, name of TPU worker binary
+    log_step_count_steps: an integer, the frequency, in number of global steps,
+      that the global step and the loss will be logged during training.
+      Also controls the frequency that the global steps / s will be logged
+      (and written to summary) during training
+    save_summary_steps: an integer, save summaries every this many steps
     iterations_per_loop: integer, steps per train loop
     cluster: a TPUClsuterResolver object
     init_checkpoint: a string, if not None then read in variables from this
@@ -1422,6 +1428,8 @@ def get_estimator(model_type, vocabulary, mesh_shape,
       cluster=cluster,
       model_dir=model_dir,
       tpu_config=my_tpu_config,
+      log_step_count_steps=log_step_count_steps,
+      save_summary_steps=save_summary_steps,
       # We use a saver hook, so disable checkpoints here to prevent double
       # saving.
       save_checkpoints_steps=None,
@@ -1999,6 +2007,8 @@ def run(tpu_job_name,
         mode="train",
         iterations_per_loop=100,
         save_checkpoints_steps=5000,
+        log_step_count_steps=100,
+        save_summary_steps=100,
         keep_checkpoint_max=None,
         eval_summary_dir=None,
         batch_size=("tokens_per_replica", 2048),
@@ -2041,6 +2051,8 @@ def run(tpu_job_name,
       perplexity_eval computes the perplexity of the dev set.
     iterations_per_loop: integer, steps per train loop
     save_checkpoints_steps: integer, see `get_estimator` docstring.
+    log_step_count_steps: integer, see `get_estimator` docstring.
+    save_summary_steps: integer, seee `get_estimator` docstring.
     keep_checkpoint_max: an integer, see `get_estimator` docstring.
     eval_summary_dir: str, see `eval_model` docstring for details.
     batch_size: An integer or a (method, value) pair to pass to
@@ -2121,6 +2133,8 @@ def run(tpu_job_name,
       learning_rate_schedule=learning_rate_schedule,
       keep_checkpoint_max=keep_checkpoint_max,
       save_checkpoints_steps=save_checkpoints_steps,
+      log_step_count_steps=log_step_count_steps,
+      save_summary_steps=save_summary_steps,
       optimizer=optimizer,
       predict_fn=predict_fn,
       variable_filter=variable_filter,
