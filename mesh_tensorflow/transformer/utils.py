@@ -1478,7 +1478,7 @@ def get_estimator(model_type, vocabulary, mesh_shape,
 
 def train_model(estimator, vocabulary, sequence_length, batch_size,
                 train_dataset_fn, train_steps, ensemble_inputs,
-                dataset_split="train"):
+                dataset_split="train", skip_count=0):
   """Train a Mesh-TF model.
 
   Args:
@@ -1500,6 +1500,7 @@ def train_model(estimator, vocabulary, sequence_length, batch_size,
       configure Unitransformer.ensemble  to the right size. If None, then all
       models are trained on the same inputs.
     dataset_split: str, which dataset split to train on.
+    skip_count: int, number of data example steps to skip
   """
 
   def input_fn(params):
@@ -1508,6 +1509,7 @@ def train_model(estimator, vocabulary, sequence_length, batch_size,
         sequence_length=sequence_length,
         vocabulary=vocabulary,
         dataset_split=dataset_split)
+    dataset = dataset.skip(skip_count)
     dataset = dataset.repeat().batch(
         batch_size * (ensemble_inputs or 1), drop_remainder=True)
     dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
@@ -1963,9 +1965,9 @@ def get_checkpoint_iterator(checkpoint_step, model_dir, skip_until=0,
     return get_step_from_checkpoint_path(p) > skip_until
 
   if checkpoint_step == "all":
-    ckpt_paths = tf.gfile.Glob(os.path.join(model_dir, "model.ckpt*"))
+    ckpt_paths = get_all_checkpoint_paths(model_dir)
     # Use set for deduplication; glob will find multiple files for each ckpt
-    ckpt_steps = {get_step_from_checkpoint_path(p) for p in ckpt_paths}
+    ckpt_steps = get_all_checkpoint_steps(ckpt_paths)
     return filter(_filter_fn,
                   [_get_checkpoint_path(s) for s in sorted(list(ckpt_steps))])
   elif checkpoint_step is None:
@@ -1989,6 +1991,32 @@ def get_checkpoint_iterator(checkpoint_step, model_dir, skip_until=0,
     return [_get_checkpoint_path(closest) for closest in closests]
 
 
+def get_all_checkpoint_steps(checkpoint_paths):
+    """Get an iterable of checkpoint steps from provided checkpoint paths.
+
+    Args:
+      checkpoint_paths: list of path of checkpoints
+
+    Returns:
+      An iterable which yields checkpoint steps.
+    """
+    checkpoint_steps = {get_step_from_checkpoint_path(p) for p in checkpoint_paths}
+    return checkpoint_steps
+
+
+def get_all_checkpoint_paths(model_dir):
+    """Get an iterable of checkpoint paths from the model_dir.
+
+    Args:
+      model_dir: str, directory to look for checkpoints in.
+
+    Returns:
+      An iterable which yields checkpoint paths.
+    """
+    ckpt_paths = tf.gfile.Glob(os.path.join(model_dir, "model.ckpt*"))
+    return ckpt_paths
+
+
 # TODO(noam): provide a more informative string for layout_rules:
 # example: "d_ff:model,heads:model,vocab:model"
 @gin.configurable
@@ -2005,6 +2033,7 @@ def run(tpu_job_name,
         export_checkpoint_step=None,
         export_path="",
         mode="train",
+        skip_data=False,
         iterations_per_loop=100,
         save_checkpoints_steps=5000,
         log_step_count_steps=100,
@@ -2049,6 +2078,8 @@ def run(tpu_job_name,
     export_path: a string, path to export the saved model
     mode: string, train/eval/perplexity_eval/infer
       perplexity_eval computes the perplexity of the dev set.
+    skip_data: bool, default False. Number of data points to skip using `tf.Dataset` skip.
+      Count is computed via batch_size *  largest_checkpoint_step * iterations_per_loop.
     iterations_per_loop: integer, steps per train loop
     save_checkpoints_steps: integer, see `get_estimator` docstring.
     log_step_count_steps: integer, see `get_estimator` docstring.
@@ -2151,8 +2182,23 @@ def run(tpu_job_name,
     # train_model
     if train_dataset_fn is None:
       raise ValueError("Must provide train_dataset_fn through gin")
+
+    skip_count = 0
+    if skip_data:
+        checkpoint_paths = get_all_checkpoint_paths(model_dir)
+        checkpoint_steps = set(get_all_checkpoint_steps(checkpoint_paths))
+        largest_checkpoint_step = max(checkpoint_steps)
+        skip_count = batch_size * largest_checkpoint_step * iterations_per_loop
+
+        tf.logging.info("Skipping {skip_count} data points due to batch_size {batch_size},"
+                        " largest_checkpoint_step {largest_checkpoint_step}, iterations_per_loop "
+                        "{iterations_per_loop}".format(skip_count=skip_count,
+                                                       batch_size=batch_size,
+                                                       largest_checkpoint_step=largest_checkpoint_step,
+                                                       iterations_per_loop=iterations_per_loop))
+
     train_model_fn(estimator, vocabulary, sequence_length, batch_size,
-                   train_dataset_fn, train_steps, ensemble_inputs)
+                   train_dataset_fn, train_steps, ensemble_inputs, skip_count=skip_count)
   elif mode == "perplexity_eval":
     if eval_dataset_fn is None:
       if train_dataset_fn is not None:
