@@ -2188,14 +2188,13 @@ def run(tpu_job_name,
         checkpoint_paths = get_all_checkpoint_paths(model_dir)
         checkpoint_steps = set(get_all_checkpoint_steps(checkpoint_paths))
         largest_checkpoint_step = max(checkpoint_steps)
-        skip_count = batch_size * largest_checkpoint_step * iterations_per_loop
+        skip_count = batch_size * largest_checkpoint_step
 
         tf.logging.info("Skipping {skip_count} data points due to batch_size {batch_size},"
-                        " largest_checkpoint_step {largest_checkpoint_step}, iterations_per_loop "
-                        "{iterations_per_loop}".format(skip_count=skip_count,
-                                                       batch_size=batch_size,
-                                                       largest_checkpoint_step=largest_checkpoint_step,
-                                                       iterations_per_loop=iterations_per_loop))
+                        " largest_checkpoint_step"
+                        " {largest_checkpoint_step}".format(skip_count=skip_count,
+                                                            batch_size=batch_size,
+                                                            largest_checkpoint_step=largest_checkpoint_step))
 
     train_model_fn(estimator, vocabulary, sequence_length, batch_size,
                    train_dataset_fn, train_steps, ensemble_inputs, skip_count=skip_count)
