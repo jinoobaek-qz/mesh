@@ -646,6 +646,8 @@ def tpu_estimator_model_fn(model_type,
           tf.summary.scalar("learning_rate", learning_rate)
       else:
         learning_rate = learning_rate_schedule
+      tf.logging.info("learning rate: {}".format(learning_rate))
+      tf.logging.info("global step: {}".format(tf.train.get_global_step()))
 
       if isinstance(variable_filter, str):
         pattern = re.compile(variable_filter)
