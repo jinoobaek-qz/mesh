@@ -2189,16 +2189,7 @@ def run(tpu_job_name,
 
     skip_count = 0
     if skip_data:
-        checkpoint_paths = get_all_checkpoint_paths(model_dir)
-        checkpoint_steps = set(get_all_checkpoint_steps(checkpoint_paths))
-        largest_checkpoint_step = max(checkpoint_steps)
-        skip_count = batch_size * largest_checkpoint_step
-
-        tf.logging.info("Skipping {skip_count} data points due to batch_size {batch_size},"
-                        " largest_checkpoint_step"
-                        " {largest_checkpoint_step}".format(skip_count=skip_count,
-                                                            batch_size=batch_size,
-                                                            largest_checkpoint_step=largest_checkpoint_step))
+      skip_count = get_skip_count(batch_size, init_checkpoint, model_dir)
 
     train_model_fn(estimator, vocabulary, sequence_length, batch_size,
                    train_dataset_fn, train_steps, ensemble_inputs, skip_count=skip_count)
@@ -2281,3 +2272,29 @@ def run(tpu_job_name,
     raise ValueError(
         "unknown mode %s - must be train/perplexity_eval/eval/infer/export"
         % mode)
+
+
+def get_skip_count(batch_size, init_checkpoint, model_dir):
+    checkpoint_paths = get_all_checkpoint_paths(model_dir)
+    checkpoint_steps = set(get_all_checkpoint_steps(checkpoint_paths))
+    if not checkpoint_paths:
+      return 0
+
+    init_checkpoint_step = 0
+    if init_checkpoint:
+      init_checkpoint_steps = set(get_all_checkpoint_steps([init_checkpoint]))
+      if init_checkpoint_steps:
+        init_checkpoint_step = max(init_checkpoint_steps)
+
+    largest_checkpoint_step = max(checkpoint_steps)
+    c_checkpoint_minus_init_step = largest_checkpoint_step - init_checkpoint_step
+    skip_count = batch_size * c_checkpoint_minus_init_step
+
+    tf.logging.info("Skipping {skip_count} data points due to batch_size {batch_size},"
+                    " largest_checkpoint_step {largest_checkpoint_step}, and"
+                    " init_checkpoint_step "
+                    "{init_checkpoint_step}".format(skip_count=skip_count,
+                                                    batch_size=batch_size,
+                                                    largest_checkpoint_step=largest_checkpoint_step,
+                                                    init_checkpoint_step=init_checkpoint_step))
+    return skip_count
