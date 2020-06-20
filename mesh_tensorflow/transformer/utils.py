@@ -717,6 +717,8 @@ def tpu_estimator_model_fn(model_type,
           tf.train.init_from_checkpoint(
               init_checkpoint, {v: v for v in restore_vars}
           )
+        else:
+          tf.logging.info("init_checkpoint is not defined")
 
         # Copy master variables to slices. Must be called first.
         restore_hook = mtf.MtfRestoreHook(lowering)
