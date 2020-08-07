@@ -1048,6 +1048,7 @@ def encode_delimited_lm(inputs,
 def decode(estimator,
            input_fn,
            vocabulary,
+           print_every=None,
            checkpoint_path=None):
   """Decode from an input_fn.
 
@@ -1076,10 +1077,16 @@ def decode(estimator,
     output_string = _maybe_detokenize(
         result["outputs"], targets_vocabulary(vocabulary))
     decodes.append(output_string)
-    if i & (i - 1) == 0:
-      # LOG every power of 2.
-      tf.logging.info("decoded {}: {}".format(i, input_string))
-      tf.logging.info("            -> {}".format(output_string))
+    if print_every is None:
+      if i & (i - 1) == 0:
+        # LOG every power of 2.
+        tf.logging.info("decoded {}: {}".format(i, input_string))
+        tf.logging.info("            -> {}".format(output_string))
+    else:
+      if i % print_every == 0:
+        tf.logging.info("decoded {}: {}".format(i, input_string))
+        tf.logging.info("            -> {}".format(output_string))
+
   return decodes
 
 
