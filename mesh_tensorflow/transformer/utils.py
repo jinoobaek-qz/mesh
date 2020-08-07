@@ -1696,7 +1696,7 @@ def eval_model(estimator, vocabulary, sequence_length, batch_size,
   for checkpoint_path in checkpoint_paths:
     tf.logging.info("Checkpoint path %s" % checkpoint_path)
     global_step = int(get_step_from_checkpoint_path(checkpoint_path))
-    decodes = decode(estimator, input_fn, vocabulary, checkpoint_path)
+    decodes = decode(estimator, input_fn, vocabulary, checkpoint_path=checkpoint_path)
     for eval_dataset in eval_datasets:
       # Extract the portion of decodes corresponding to this dataset
       examples = cached_examples[eval_dataset.name]
