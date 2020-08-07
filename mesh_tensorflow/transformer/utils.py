@@ -1083,7 +1083,7 @@ def decode(estimator,
         tf.logging.info("decoded {}: {}".format(i, input_string))
         tf.logging.info("            -> {}".format(output_string))
     else:
-      if i % print_every == 0:
+      if i % int(print_every) == 0:
         tf.logging.info("decoded {}: {}".format(i, input_string))
         tf.logging.info("            -> {}".format(output_string))
 
