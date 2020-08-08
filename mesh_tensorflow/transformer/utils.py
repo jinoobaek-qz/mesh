@@ -1079,6 +1079,8 @@ def decode(estimator,
   for i, result in enumerate(result_iter):
     input_string = _maybe_detokenize(
         result["inputs"], inputs_vocabulary(vocabulary))
+    target_string = _maybe_detokenize(
+        result["targets"], inputs_vocabulary(vocabulary))
     output_string = _maybe_detokenize(
         result["outputs"], targets_vocabulary(vocabulary))
     decodes.append(output_string)
@@ -1086,11 +1088,13 @@ def decode(estimator,
       if i & (i - 1) == 0:
         # LOG every power of 2.
         tf.logging.info("decoded {}: {}".format(i, input_string))
-        tf.logging.info("            -> {}".format(output_string))
+        tf.logging.info("output_string   -> {}".format(output_string))
+        tf.logging.info("target_string   -> {}".format(target_string))
     else:
       if i % int(print_every) == 0:
         tf.logging.info("decoded {}: {}".format(i, input_string))
-        tf.logging.info("            -> {}".format(output_string))
+        tf.logging.info("output_string   -> {}".format(output_string))
+        tf.logging.info("target_string   -> {}".format(target_string))
 
   return decodes
 
