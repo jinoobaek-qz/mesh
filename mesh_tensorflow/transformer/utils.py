@@ -499,6 +499,7 @@ def tpu_estimator_model_fn(model_type,
       }
     elif mode == tf.estimator.ModeKeys.PREDICT:
       inputs = mtf_features["inputs"]
+      targets = mtf_features["targets"]
       if predict_fn:
         mtf_samples = predict_fn(
             model=transformer_model,
@@ -520,8 +521,10 @@ def tpu_estimator_model_fn(model_type,
         raise ValueError("unrecognized class")
       mtf_samples = mtf.anonymize(mtf_samples)
       inputs = mtf.anonymize(inputs)
+      targets = mtf.anonymize(targets)
       lowering = mtf.Lowering(graph, {mesh: mesh_impl}, autostack=autostack)
       inputs = clean_decodes(lowering.export_to_tf_tensor(inputs))
+      targets = clean_decodes(lowering.export_to_tf_tensor(targets))
       outputs = clean_decodes(lowering.export_to_tf_tensor(mtf_samples))
 
       # Detokenize in the graph if supported by vocabulary and accelerator.
@@ -531,10 +534,12 @@ def tpu_estimator_model_fn(model_type,
         return ids
 
       inputs = _maybe_detokenize(inputs, inputs_vocabulary(vocabulary))
+      targets = _maybe_detokenize(targets, inputs_vocabulary(vocabulary))
       outputs = _maybe_detokenize(outputs, targets_vocabulary(vocabulary))
 
       predictions = {
           "inputs": inputs,
+          "targets": targets,
           "outputs": outputs}
 
     if mode in ["score", tf.estimator.ModeKeys.PREDICT]:
